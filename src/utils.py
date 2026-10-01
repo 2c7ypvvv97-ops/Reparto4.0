@@ -3,9 +3,11 @@ from datetime import datetime
 
 def parse_qr_scheda(qr_string: str):
     """
-    Parsifica codici scheda nel formato:
-    - SE.0192765.G-1-TSSAA00000 (con -T)
-    - SE.0192765.G-1-SSAA00000   (senza -T)
+    Parsifica codici scheda scansionati senza spazi.
+    Esempio: SE.0176965.F-1-T382502077
+    - Codice: SE.0176965.F-1-T
+    - WWYY: 3825
+    - Prog: 02077 (5 cifre complete)
     """
     if not qr_string:
         return None
@@ -14,29 +16,25 @@ def parse_qr_scheda(qr_string: str):
     if not qr_cleaned:
         return None
 
-    pattern = r"^(?P<codice>.+?)(?:-T)?-(?P<wwyy>\d{4})(?P<prog>\d{5})$"
+    # Cerca la parte finale composta esattamente da 9 cifre (4 per WWYY + 5 per Progressivo)
+    # E cattura tutto ciò che sta prima come codice scheda
+    pattern = r"^(?P<codice>.+?)(?P<wwyy>\d{4})(?P<prog>\d{5})$"
     
     match = re.match(pattern, qr_cleaned)
     if match:
-        raw_prog = match.group("prog")
-        prog_4_cifre = raw_prog[-4:]
-        
         return {
             "qr_raw": qr_cleaned,
             "codice": match.group("codice").upper(),
             "wwyy": match.group("wwyy"),
-            "prog": prog_4_cifre
+            "prog": match.group("prog")  # Mantiene tutte e 5 le cifre del progressivo
         }
     else:
-        # Fallback pulito se il formato differisce leggermente
-        parti = qr_cleaned.split("-")
-        codice_approx = parti[0].upper() if len(parti) > 0 else qr_cleaned.upper()
-        
+        # Fallback se la stringa ha un formato non standard
         return {
             "qr_raw": qr_cleaned,
-            "codice": codice_approx,
+            "codice": qr_cleaned.upper(),
             "wwyy": "0000",
-            "prog": qr_cleaned[-4:] if len(qr_cleaned) >= 4 else "0000"
+            "prog": qr_cleaned[-5:] if len(qr_cleaned) >= 5 else "00000"
         }
 
 def genera_seriale_centralina(commessa: str, modello: str) -> str:
